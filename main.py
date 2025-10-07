@@ -44,7 +44,7 @@ def barCodeSearch(pdf, index):
   # Found dpi = 200 to be prefectly fine for program needs
   pages = convert_from_path(
     pdf, 
-    dpi=200, 
+    dpi=70, 
     poppler_path=str(Path().absolute()) + "\\poppler-25.07.0\\Library\\bin" # Path to local installation of Poppler needed to convert .pdf file to scanable image
     )
   
