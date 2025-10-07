@@ -169,7 +169,11 @@ dist/
 .spec/
 
 
-output/
-!output/.empty
+files/
+!files/.empty
 log/
 !log/.empty
+images/
+!images/.empty
+
+poppler-25.07.0/
