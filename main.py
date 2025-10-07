@@ -29,21 +29,7 @@ log.basicConfig(
 
 log.critical("### ### ### V Program Starts V ### ### ###")
 
-
-###############################################################################################
-###############################################################################################
-###############################################################################################
-
-
 args = argparse.ArgumentParser()
-args.add_argument(
-  "-t",
-  "--test",
-  type=int,
-  help="Declair if the application should run in test mode [0 -> production (default) | 1 -> test mode]."
-)
-
-args = args.parse_args()
 
 
 ###############################################################################################
@@ -53,6 +39,7 @@ args = args.parse_args()
 
 # Searches a given page of a .pdf file for valid Bar Codes and returns the value contained within 
 def barCodeSearch(pdf, index):
+  # print("here", flush=True)
 
   # Found dpi = 200 to be prefectly fine for program needs
   pages = convert_from_path(
@@ -60,25 +47,29 @@ def barCodeSearch(pdf, index):
     dpi=200, 
     poppler_path=str(Path().absolute()) + "\\poppler-25.07.0\\Library\\bin" # Path to local installation of Poppler needed to convert .pdf file to scanable image
     )
+  
 
   # Sets page being scanned based off of the currently read page index
   image = pages[index]
+  w, h = image.size
+  # Specifying location to look for Bar Codes
+  crop_box = (int(w*0.1), int(h*0.80), w, h)  # (left, top, right, bottom)
+  image = image.crop(crop_box)
+  results = decode(image)
+  
 
   # saves image generated for debugging
   image.save("./images/" + pdf.split("/")[-1].split(".pdf")[0] + str(index) + ".png")
 
-  results = decode(image)
 
-  # Grabs Bar Code value from first scan on the page
+  print(results, flush=True)
 
   if results:
     print(results[0].data.decode("utf-8"), flush=True)
-  # if results:
-  #     out = results[0].data.decode("utf-8")
-  # else:
-  #     out = "FF-00000"
-
-  # return out
+    log.info(results[0].data.decode("utf-8"))
+    return results[0].data.decode("utf-8")
+  else:
+    log.warning(results)
 
 
 # Parses given .pdf files into single page files
@@ -123,26 +114,17 @@ def main():
   # Location of .pdf(s) being read
   search_location = "./files"
 
-  # Searches for users Poppler folder to ensure they have the dependancy installed
-  poppler_folder_name = ""
-  for i in next(os.walk('.'))[1]:
-    if "poppler" in i:
-      poppler_folder_name = i
-
-
 
   # program runs through all files in search_location
   i = 0
   while i < len(os.listdir(search_location)):
     if os.listdir(search_location)[i].endswith('.pdf'):
-      print("File Found: " + str(os.listdir(search_location)[i]))
+      # print("File Found: " + str(os.listdir(search_location)[i]))
       log.info("File Found: " + str(os.listdir(search_location)[i]))
 
       PDFsplit(search_location + "/" + os.listdir(search_location)[i])
 
     i += 1
-
-  print("\nExecution Complete!", flush=True)
 
 
 if __name__ == "__main__":
