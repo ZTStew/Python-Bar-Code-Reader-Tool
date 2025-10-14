@@ -14,6 +14,8 @@ from pyzbar.pyzbar import decode
 from PIL import Image
 from pypdf import PdfReader
 
+from pyzxing import BarCodeReader
+
 path = os.path.dirname(os.path.abspath(__file__)) + '\\Log\\template.log'
 
 log.basicConfig(
@@ -36,6 +38,36 @@ args = argparse.ArgumentParser()
 ###############################################################################################
 ###############################################################################################
 
+# Post-processes image to increase likelihood of Bar Codes being correctly identified
+def postProcessBarCode(image, index, output_location):
+  # Converts `image` into .png file format without writing
+  png_buffer = BytesIO()
+  image.save(png_buffer, format="PNG")
+  image = png_buffer.getvalue()
+  image = Image.open(BytesIO(image))
+
+
+  image = cv2.cvtColor(np.array(image), cv2.IMREAD_GRAYSCALE)
+  image = cv2.convertScaleAbs(image, alpha=1.8, beta=0)
+  # image = cv2.equalizeHist(image)
+  kernel = np.ones((4, 1), np.uint8)       # try (3,3) or (5,5)
+  image = cv2.morphologyEx(image, cv2.MORPH_CLOSE, kernel, iterations=3)
+
+  # Cleans up isolated specs on image
+  image = cv2.morphologyEx(image, cv2.MORPH_OPEN, kernel, iterations=1)
+
+  # cv2.imwrite(output_location + "/test" + str(index) + ".png", image)
+  # print(image, flush=True)
+
+  cv2.imwrite("read" + str(index) + ".png", image)
+
+
+  reader = BarCodeReader()
+  # results = reader.decode("./read.png", try_harder=False, possible_formats=None, pure_barcode=False)
+  results = reader.decode_array(image)
+  return decode(Image.fromarray(image))
+  # return image
+
 
 # Searches a given page of a .pdf file for valid Bar Codes and returns the value contained within 
 def barCodeSearch(pdf, index):
@@ -44,7 +76,7 @@ def barCodeSearch(pdf, index):
   # Found dpi = 200 to be prefectly fine for program needs
   pages = convert_from_path(
     pdf, 
-    dpi=70, 
+    dpi=300, 
     poppler_path=str(Path().absolute()) + "\\poppler-25.07.0\\Library\\bin" # Path to local installation of Poppler needed to convert .pdf file to scanable image
     )
   
@@ -55,7 +87,11 @@ def barCodeSearch(pdf, index):
   # Specifying location to look for Bar Codes
   crop_box = (int(w*0.1), int(h*0.80), w, h)  # (left, top, right, bottom)
   image = image.crop(crop_box)
+
+
   results = decode(image)
+  # results = postProcessBarCode(image, index, output_location)
+
   
 
   # saves image generated for debugging
@@ -70,6 +106,7 @@ def barCodeSearch(pdf, index):
     return results[0].data.decode("utf-8")
   else:
     log.warning(results)
+
 
 
 # Parses given .pdf files into single page files
