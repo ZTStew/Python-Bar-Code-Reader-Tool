@@ -16,6 +16,11 @@ from pypdf import PdfReader
 
 from pyzxing import BarCodeReader
 
+# SCAN POST-PROCESSING
+import cv2
+import numpy as np
+from io import BytesIO
+
 path = os.path.dirname(os.path.abspath(__file__)) + '\\Log\\template.log'
 
 log.basicConfig(
@@ -33,13 +38,18 @@ log.critical("### ### ### V Program Starts V ### ### ###")
 
 args = argparse.ArgumentParser()
 
+"""
+Name: [status]_kernel_[x]-[y]_close[z]_open[za]
+Example: success_kernel[1]-[3]_close[2]_open[1]
+"""
+
 
 ###############################################################################################
 ###############################################################################################
 ###############################################################################################
 
 # Post-processes image to increase likelihood of Bar Codes being correctly identified
-def postProcessBarCode(image, index, output_location):
+def postProcessBarCode(image, index, output_location, settings):
   # Converts `image` into .png file format without writing
   png_buffer = BytesIO()
   image.save(png_buffer, format="PNG")
@@ -48,69 +58,120 @@ def postProcessBarCode(image, index, output_location):
 
 
   image = cv2.cvtColor(np.array(image), cv2.IMREAD_GRAYSCALE)
-  image = cv2.convertScaleAbs(image, alpha=1.8, beta=0)
+  # image = cv2.convertScaleAbs(image, alpha=settings["alpha"], beta=settings["beta"])
   # image = cv2.equalizeHist(image)
-  kernel = np.ones((4, 1), np.uint8)       # try (3,3) or (5,5)
-  image = cv2.morphologyEx(image, cv2.MORPH_CLOSE, kernel, iterations=3)
+  kernel = np.ones((settings["kernelx"], settings["kernely"]), np.uint8)       # try (3,3) or (5,5)
+  image = cv2.morphologyEx(image, cv2.MORPH_CLOSE, kernel, iterations=settings["close"])
 
   # Cleans up isolated specs on image
-  image = cv2.morphologyEx(image, cv2.MORPH_OPEN, kernel, iterations=1)
+  image = cv2.morphologyEx(image, cv2.MORPH_OPEN, kernel, iterations=settings["open"])
 
   # cv2.imwrite(output_location + "/test" + str(index) + ".png", image)
   # print(image, flush=True)
 
-  cv2.imwrite("read" + str(index) + ".png", image)
 
 
   reader = BarCodeReader()
   # results = reader.decode("./read.png", try_harder=False, possible_formats=None, pure_barcode=False)
   results = reader.decode_array(image)
-  return decode(Image.fromarray(image))
-  # return image
+  results = decode(Image.fromarray(image))
+
+  # print(results, flush=True)
+
+  output_file_name = ""
+  if results:
+    output_file_name = "success"
+  else:
+    output_file_name = "failure"
+
+  output_file_name += "_kernel_[" + str(settings["kernelx"]) + "]-[" + str(settings["kernely"]) + "]_close[" + str(settings["close"]) + "]_open[" + str(settings["open"]) + "]_alpha[" + str(settings["alpha"]) + "]_beta[" + str(settings["beta"]) + "]"
+  # Name: [status]_kernel_[x]-[y]_close[z]_open[za]
+  cv2.imwrite(output_location + "/" + output_file_name + ".png", image)
 
 
 # Searches a given page of a .pdf file for valid Bar Codes and returns the value contained within 
-def barCodeSearch(pdf, index):
-  # print("here", flush=True)
+def barCodeSearch(pdf, index, output_location):
 
   # Found dpi = 200 to be prefectly fine for program needs
   pages = convert_from_path(
     pdf, 
-    dpi=300, 
+    dpi=200, 
     poppler_path=str(Path().absolute()) + "\\poppler-25.07.0\\Library\\bin" # Path to local installation of Poppler needed to convert .pdf file to scanable image
     )
   
 
   # Sets page being scanned based off of the currently read page index
   image = pages[index]
-  w, h = image.size
-  # Specifying location to look for Bar Codes
-  crop_box = (int(w*0.1), int(h*0.80), w, h)  # (left, top, right, bottom)
-  image = image.crop(crop_box)
+  # w, h = image.size
+  # # Specifying location to look for Bar Codes
+  # crop_box = (int(w*0.1), int(h*0.80), w, h)  # (left, top, right, bottom)
+  # image = image.crop(crop_box)
 
-
-  results = decode(image)
   # results = postProcessBarCode(image, index, output_location)
 
-  
+  # print(results, flush=True)
 
-  # saves image generated for debugging
-  image.save("./images/" + pdf.split("/")[-1].split(".pdf")[0] + str(index) + ".png")
+  # Grabs Bar Code value from first scan on the page
+  # if results:
+  #     out = results[0].data.decode("utf-8")
+  # else:
+  #     out = "FF-00000"
 
 
-  print(results, flush=True)
+  kernelx = 0
+  kernely = 0
+  close = 0
+  _open = 0
+  alpha = 0.0
+  beta = 0.0
+  while kernelx < 6:
+    while kernely < 6:
+      while close < 6:
+        while _open < 6:
+          settings = {
+            "status": "",
+            "kernelx": kernelx,
+            "kernely": kernely,
+            "close": close,
+            "open": _open,
+            "alpha": alpha,
+            "beta": beta
+          }
 
-  if results:
-    print(results[0].data.decode("utf-8"), flush=True)
-    log.info(results[0].data.decode("utf-8"))
-    return results[0].data.decode("utf-8")
-  else:
-    log.warning(results)
+          postProcessBarCode(image, index, output_location, settings)
+          # while alpha <= 3.0:
+          #   while beta <= 1.0:
+          #     beta += 0.1
+          #   alpha += 0.1
+          _open += 1
+          alpha = 0.0
+          beta = 0.0
+        close += 1
+        _open = 0
+        alpha = 0.0
+        beta = 0.0
+      kernely += 1
+      close = 0
+      _open = 0
+      alpha = 0.0
+      beta = 0.0
+
+    kernelx += 1
+    kernely = 0
+    close = 0
+    _open = 0
+    alpha = 0.0
+    beta = 0.0
+
+
+
+
+  # print(results, flush=True)
 
 
 
 # Parses given .pdf files into single page files
-def PDFsplit(pdf):
+def PDFsplit(pdf, output_location):
   icon = ["|", "/", "\\"]
   # starting index of first slice
   index = 0
@@ -128,8 +189,9 @@ def PDFsplit(pdf):
 
   # loops through each page of .pdf file
   while index < len(reader.pages):
+
     # Decodes the Bar Codes found on a given (index) .pdf page and returns the value of the Bar Code
-    bar_code_value = barCodeSearch(pdf, index)
+    bar_code_value = barCodeSearch(pdf, index, output_location)
 
     # logs page info
     out_pdf = pdf.split("/")[-1]
@@ -150,6 +212,7 @@ def PDFsplit(pdf):
 def main():
   # Location of .pdf(s) being read
   search_location = "./files"
+  output_location = "./images"
 
 
   # program runs through all files in search_location
@@ -159,7 +222,7 @@ def main():
       # print("File Found: " + str(os.listdir(search_location)[i]))
       log.info("File Found: " + str(os.listdir(search_location)[i]))
 
-      PDFsplit(search_location + "/" + os.listdir(search_location)[i])
+      PDFsplit(search_location + "/" + os.listdir(search_location)[i], output_location)
 
     i += 1
 
