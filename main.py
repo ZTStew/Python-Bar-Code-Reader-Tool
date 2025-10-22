@@ -21,6 +21,7 @@ import cv2
 import numpy as np
 from io import BytesIO
 
+
 path = os.path.dirname(os.path.abspath(__file__)) + '\\Log\\template.log'
 
 log.basicConfig(
@@ -42,6 +43,8 @@ args = argparse.ArgumentParser()
 Name: [status]_kernel_[x]-[y]_close[z]_open[za]
 Example: success_kernel[1]-[3]_close[2]_open[1]
 """
+
+output_settings = [["kernelx", "kernely", "close", "open", "alpha", "beta"]]
 
 
 ###############################################################################################
@@ -81,12 +84,12 @@ def postProcessBarCode(image, index, output_location, settings):
   output_file_name = ""
   if results:
     output_file_name = "success"
-  else:
-    output_file_name = "failure"
-
-  output_file_name += "_kernel_[" + str(settings["kernelx"]) + "]-[" + str(settings["kernely"]) + "]_close[" + str(settings["close"]) + "]_open[" + str(settings["open"]) + "]_alpha[" + str(settings["alpha"]) + "]_beta[" + str(settings["beta"]) + "]"
-  # Name: [status]_kernel_[x]-[y]_close[z]_open[za]
-  cv2.imwrite(output_location + "/" + output_file_name + ".png", image)
+    output_file_name += "_kernel_[" + str(settings["kernelx"]) + "]-[" + str(settings["kernely"]) + "]_close[" + str(settings["close"]) + "]_open[" + str(settings["open"]) + "]_alpha[" + str(settings["alpha"]) + "]_beta[" + str(settings["beta"]) + "]"
+    # Name: [status]_kernel_[x]-[y]_close[z]_open[za]
+    cv2.imwrite(output_location + "/" + output_file_name + ".png", image)
+            
+    # np.savetxt('test_settings1.csv', (), delimiter=',', fmt='%s')
+    output_settings.append([str(settings["kernelx"]), str(settings["kernely"]), str(settings["close"]), str(settings["open"]), str(settings["alpha"]), str(settings["beta"])])
 
 
 # Searches a given page of a .pdf file for valid Bar Codes and returns the value contained within 
@@ -215,6 +218,7 @@ def main():
   output_location = "./images"
 
 
+
   # program runs through all files in search_location
   i = 0
   while i < len(os.listdir(search_location)):
@@ -226,6 +230,7 @@ def main():
 
     i += 1
 
+  np.savetxt('test_settings1.csv', (output_settings), delimiter=',', fmt='%s', newline='|\n')
 
 if __name__ == "__main__":
   # calling the main function
