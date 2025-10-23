@@ -44,7 +44,7 @@ Name: [status]_kernel_[x]-[y]_close[z]_open[za]
 Example: success_kernel[1]-[3]_close[2]_open[1]
 """
 
-output_settings = [["kernelx", "kernely", "close", "open", "alpha", "beta"]]
+output_settings = [["kernelx", "kernely", "close", "open"]]
 
 
 ###############################################################################################
@@ -52,7 +52,7 @@ output_settings = [["kernelx", "kernely", "close", "open", "alpha", "beta"]]
 ###############################################################################################
 
 # Post-processes image to increase likelihood of Bar Codes being correctly identified
-def postProcessBarCode(image, index, output_location, settings):
+def postProcessBarCode(image, index, output_location, data_sets):
   # Converts `image` into .png file format without writing
   png_buffer = BytesIO()
   image.save(png_buffer, format="PNG")
@@ -61,13 +61,13 @@ def postProcessBarCode(image, index, output_location, settings):
 
 
   image = cv2.cvtColor(np.array(image), cv2.IMREAD_GRAYSCALE)
-  # image = cv2.convertScaleAbs(image, alpha=settings["alpha"], beta=settings["beta"])
+  # image = cv2.convertScaleAbs(image, alpha=int(data_sets[4]), beta=int(data_sets[5]))
   # image = cv2.equalizeHist(image)
-  kernel = np.ones((settings["kernelx"], settings["kernely"]), np.uint8)       # try (3,3) or (5,5)
-  image = cv2.morphologyEx(image, cv2.MORPH_CLOSE, kernel, iterations=settings["close"])
+  kernel = np.ones((int(data_sets[0]), int(data_sets[1])), np.uint8)       # try (3,3) or (5,5)
+  image = cv2.morphologyEx(image, cv2.MORPH_CLOSE, kernel, iterations=int(data_sets[2]))
 
   # Cleans up isolated specs on image
-  image = cv2.morphologyEx(image, cv2.MORPH_OPEN, kernel, iterations=settings["open"])
+  image = cv2.morphologyEx(image, cv2.MORPH_OPEN, kernel, iterations=int(data_sets[3]))
 
   # cv2.imwrite(output_location + "/test" + str(index) + ".png", image)
   # print(image, flush=True)
@@ -84,16 +84,16 @@ def postProcessBarCode(image, index, output_location, settings):
   output_file_name = ""
   if results:
     output_file_name = "success"
-    output_file_name += "_kernel_[" + str(settings["kernelx"]) + "]-[" + str(settings["kernely"]) + "]_close[" + str(settings["close"]) + "]_open[" + str(settings["open"]) + "]_alpha[" + str(settings["alpha"]) + "]_beta[" + str(settings["beta"]) + "]"
+    output_file_name += "_kernel_[" + str(int(data_sets[0])) + "]-[" + str(int(data_sets[1])) + "]_close[" + str(int(data_sets[2])) + "]_open[" + str(int(data_sets[3])) + "]"
     # Name: [status]_kernel_[x]-[y]_close[z]_open[za]
     cv2.imwrite(output_location + "/" + output_file_name + ".png", image)
             
-    # np.savetxt('test_settings1.csv', (), delimiter=',', fmt='%s')
-    output_settings.append([str(settings["kernelx"]), str(settings["kernely"]), str(settings["close"]), str(settings["open"]), str(settings["alpha"]), str(settings["beta"])])
+    # np.savetxt('test_data_sets1.csv', (), delimiter=',', fmt='%s')
+    output_settings.append([str(int(data_sets[0])), str(int(data_sets[1])), str(int(data_sets[2])), str(int(data_sets[3]))])
 
 
 # Searches a given page of a .pdf file for valid Bar Codes and returns the value contained within 
-def barCodeSearch(pdf, index, output_location):
+def barCodeSearch(pdf, index, output_location, data_sets):
 
   # Found dpi = 200 to be prefectly fine for program needs
   pages = convert_from_path(
@@ -120,51 +120,56 @@ def barCodeSearch(pdf, index, output_location):
   # else:
   #     out = "FF-00000"
 
+  for i in data_sets:
+    postProcessBarCode(image, index, output_location, i)
+    # print(data_sets[1])
 
-  kernelx = 0
-  kernely = 0
-  close = 0
-  _open = 0
-  alpha = 0.0
-  beta = 0.0
-  while kernelx < 6:
-    while kernely < 6:
-      while close < 6:
-        while _open < 6:
-          settings = {
-            "status": "",
-            "kernelx": kernelx,
-            "kernely": kernely,
-            "close": close,
-            "open": _open,
-            "alpha": alpha,
-            "beta": beta
-          }
 
-          postProcessBarCode(image, index, output_location, settings)
-          # while alpha <= 3.0:
-          #   while beta <= 1.0:
-          #     beta += 0.1
-          #   alpha += 0.1
-          _open += 1
-          alpha = 0.0
-          beta = 0.0
-        close += 1
-        _open = 0
-        alpha = 0.0
-        beta = 0.0
-      kernely += 1
-      close = 0
-      _open = 0
-      alpha = 0.0
-      beta = 0.0
 
-    kernelx += 1
-    kernely = 0
-    close = 0
-    _open = 0
-    alpha = 0.0
-    beta = 0.0
+  # kernelx = 0
+  # kernely = 0
+  # close = 0
+  # _open = 0
+  # alpha = 0.0
+  # beta = 0.0
+  # while kernelx < 6:
+  #   while kernely < 6:
+  #     while close < 6:
+  #       while _open < 6:
+  #         settings = {
+  #           "status": "",
+  #           "kernelx": kernelx,
+  #           "kernely": kernely,
+  #           "close": close,
+  #           "open": _open,
+  #           "alpha": alpha,
+  #           "beta": beta
+  #         }
+
+  #         postProcessBarCode(image, index, output_location, settings)
+  #         # while alpha <= 3.0:
+  #         #   while beta <= 1.0:
+  #         #     beta += 0.1
+  #         #   alpha += 0.1
+  #         _open += 1
+  #         alpha = 0.0
+  #         beta = 0.0
+  #       close += 1
+  #       _open = 0
+  #       alpha = 0.0
+  #       beta = 0.0
+  #     kernely += 1
+  #     close = 0
+  #     _open = 0
+  #     alpha = 0.0
+  #     beta = 0.0
+
+  #   kernelx += 1
+  #   kernely = 0
+  #   close = 0
+  #   _open = 0
+  #   alpha = 0.0
+  #   beta = 0.0
 
 
 
@@ -174,7 +179,7 @@ def barCodeSearch(pdf, index, output_location):
 
 
 # Parses given .pdf files into single page files
-def PDFsplit(pdf, output_location):
+def PDFsplit(pdf, output_location, data_sets):
   icon = ["|", "/", "\\"]
   # starting index of first slice
   index = 0
@@ -194,7 +199,7 @@ def PDFsplit(pdf, output_location):
   while index < len(reader.pages):
 
     # Decodes the Bar Codes found on a given (index) .pdf page and returns the value of the Bar Code
-    bar_code_value = barCodeSearch(pdf, index, output_location)
+    bar_code_value = barCodeSearch(pdf, index, output_location, data_sets)
 
     # logs page info
     out_pdf = pdf.split("/")[-1]
@@ -217,6 +222,15 @@ def main():
   search_location = "./files"
   output_location = "./images"
 
+  settings_location = "./test_settings5.csv"
+
+  # with open(settings_location) as csvfile:
+  #   spamreader = csv.reader(csvfile, delimiter=',', quotechar='|')
+  #   for row in spamreader:
+  #     print(', '.join(row))
+
+  data_sets = np.genfromtxt(settings_location, delimiter=',', skip_header=1)
+  # print(data_sets[0][3])
 
 
   # program runs through all files in search_location
@@ -226,11 +240,11 @@ def main():
       # print("File Found: " + str(os.listdir(search_location)[i]))
       log.info("File Found: " + str(os.listdir(search_location)[i]))
 
-      PDFsplit(search_location + "/" + os.listdir(search_location)[i], output_location)
+      PDFsplit(search_location + "/" + os.listdir(search_location)[i], output_location, data_sets)
 
     i += 1
 
-  np.savetxt('test_settings1.csv', (output_settings), delimiter=',', fmt='%s', newline='|\n')
+  np.savetxt('test_settings6.csv', (output_settings), delimiter=',', fmt='%s', newline='\n')
 
 if __name__ == "__main__":
   # calling the main function
